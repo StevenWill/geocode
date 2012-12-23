@@ -13,37 +13,47 @@ class geocode {
   * get values from cached yahoo maps request.
   */
   function location($geocode){
-    //cache the restful call becuase it is good practice.
+    //cache the restful call.
     //set tmp file yahoo url as md5
     $tmp_file = '/tmp/geo_'.md5($geocode);
     $cache = new cache();
     //set timeout to be short, 100, for testing
     $cache->file_cache($geocode, $tmp_file, 100);
 
-    //creat new document to work on
-    $rssdoc = new DOMDocument();
-    //load tmp_file into document
-    $rssdoc->load( $tmp_file );
+    $number = "";
+    $street = "";
+    $city = "";
+    $state = "";
+    $zip = "";
+    
+    $handle = fopen($tmp_file, 'r');
+    $response = fread($handle, filesize($tmp_file));
+    $response_json = json_decode($response);
+    fclose($handle);
+    
+    foreach($response_json->results['0']->address_components as $address) {
+      if (in_array('street_number', $address->types)) {
+        $number = $address->short_name;
+      }
+      if (in_array('route', $address->types)) {
+        $street = $address->short_name;
+      }
+      if (in_array('locality', $address->types)) {
+        $city = $address->short_name;
+      }
+      if (in_array('administrative_area_level_1', $address->types)) {
+        $state = $address->short_name;
+      }
+      if (in_array('postal_code', $address->types)) {
+        $zip = $address->short_name;
+      }
+    }
 
-    //navigate to Latitude node
-    $xmllat = $rssdoc->getElementsByTagName( "Latitude" );
-    //get value of Latitude node
-    $latitude = $xmllat->item(0)->nodeValue;
+    $latitude = $response_json->results['0']->geometry->location->lat;
 
-    $xmllong = $rssdoc->getElementsByTagName( "Longitude" );
-    $longitude = $xmllong->item(0)->nodeValue;
-
-    $xmladd = $rssdoc->getElementsByTagName( "Address" );
-    $address = $xmladd->item(0)->nodeValue;
-
-    $xmlcity = $rssdoc->getElementsByTagName( "City" );
-    $city = $xmlcity->item(0)->nodeValue;
-
-    $xmlstate = $rssdoc->getElementsByTagName( "State" );
-    $state = $xmlstate->item(0)->nodeValue;
-
-    $xmlzip = $rssdoc->getElementsByTagName( "Zip" );
-    $zip = $xmlzip->item(0)->nodeValue;
+    $longitude = $response_json->results['0']->geometry->location->lng;
+    
+    $address = $number . " " . $street;
 
     return array($latitude, $longitude, $address, $city, $state, $zip);
   } 
